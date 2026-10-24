@@ -1,0 +1,39 @@
+# SLOs (docs/slos.md) as alert rules. Alertmanager / Grafana OnCall / Better Stack routes these to a phone.
+groups:
+  - name: callbridge-slos
+    rules:
+      - alert: ReplyLatencyP95High
+        expr: histogram_quantile(0.95, sum(rate(callbridge_voice_response_seconds_bucket[10m])) by (le)) > 0.8
+        for: 10m
+        labels: { severity: page }
+        annotations: { summary: "p95 caller-stops -> AI-speaks is above 800ms", runbook: "docs/runbook.md#slow-replies" }
+
+      - alert: CallFailureRateHigh
+        expr: |
+          sum(rate(callbridge_call_outcomes_total{outcome="no_action"}[30m]))
+            / clamp_min(sum(rate(callbridge_call_outcomes_total[30m])), 1e-9) > 0.2
+        for: 15m
+        labels: { severity: ticket }
+        annotations: { summary: "Over 20% of calls end with nothing done", runbook: "docs/runbook.md#bad-outcomes" }
+
+      - alert: LLMProviderFailing
+        expr: sum(rate(callbridge_llm_failures_total[5m])) by (provider) > 0.1
+        for: 5m
+        labels: { severity: page }
+        annotations: { summary: "LLM provider {{ $labels.provider }} failing; fallback chain in use", runbook: "docs/runbook.md#llm-provider-down" }
+
+      - alert: DailyCostHigh
+        expr: increase(callbridge_cost_gbp_total[24h]) > 15
+        labels: { severity: ticket }
+        annotations: { summary: "LLM spend over £15 in 24h (cap is £20, then offline parsing)", runbook: "docs/runbook.md#cost-spike" }
+
+      - alert: SafetyBlocksSpike
+        expr: sum(increase(callbridge_safety_blocks_total[1h])) > 20
+        labels: { severity: ticket }
+        annotations: { summary: "Checker rejected many proposals: possible attack or a bad config", runbook: "docs/runbook.md#safety-blocks" }
+
+      - alert: ApiDown
+        expr: up{job="callbridge-api"} == 0
+        for: 2m
+        labels: { severity: page }
+        annotations: { summary: "API not scraping", runbook: "docs/runbook.md#api-down" }

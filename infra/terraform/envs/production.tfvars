@@ -1,0 +1,10 @@
+env               = "production"
+domain            = "api.callbridge.example"
+dashboard_domain  = "app.callbridge.example"
+certificate_arn   = "arn:aws:acm:eu-west-2:000000000000:certificate/REPLACE-ME"
+image_tag         = "set-by-deploy-script"
+api_desired_count = 2
+db_instance_class = "db.t4g.medium"
+db_multi_az       = true
+alert_email       = "alerts@callbridge.example"
+enable_sim_api    = false

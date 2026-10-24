@@ -1,0 +1,34 @@
+{
+  "title": "Callbridge",
+  "uid": "callbridge-main",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    { "id": 1, "type": "timeseries", "title": "Reply delay p50 / p95 (caller stops -> AI speaks)", "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [
+        { "datasource": { "uid": "prom" }, "expr": "histogram_quantile(0.5, sum(rate(callbridge_voice_response_seconds_bucket[5m])) by (le))", "legendFormat": "p50" },
+        { "datasource": { "uid": "prom" }, "expr": "histogram_quantile(0.95, sum(rate(callbridge_voice_response_seconds_bucket[5m])) by (le))", "legendFormat": "p95" } ] },
+    { "id": 2, "type": "timeseries", "title": "Calls per minute", "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [ { "datasource": { "uid": "prom" }, "expr": "sum(rate(callbridge_calls_total[5m])) * 60", "legendFormat": "calls/min" } ] },
+    { "id": 3, "type": "stat", "title": "Active calls", "gridPos": { "x": 0, "y": 8, "w": 6, "h": 5 },
+      "targets": [ { "datasource": { "uid": "prom" }, "expr": "sum(callbridge_active_calls)" } ] },
+    { "id": 4, "type": "stat", "title": "Cost per call (£, 24h)", "gridPos": { "x": 6, "y": 8, "w": 6, "h": 5 },
+      "fieldConfig": { "defaults": { "unit": "currencyGBP", "decimals": 3 } },
+      "targets": [ { "datasource": { "uid": "prom" }, "expr": "increase(callbridge_cost_gbp_total[24h]) / clamp_min(sum(increase(callbridge_calls_total[24h])), 1)" } ] },
+    { "id": 5, "type": "stat", "title": "Handoff rate (24h)", "gridPos": { "x": 12, "y": 8, "w": 6, "h": 5 },
+      "fieldConfig": { "defaults": { "unit": "percentunit" } },
+      "targets": [ { "datasource": { "uid": "prom" }, "expr": "sum(increase(callbridge_handoffs_total[24h])) / clamp_min(sum(increase(callbridge_calls_total[24h])), 1)" } ] },
+    { "id": 6, "type": "stat", "title": "Red flags escalated (24h)", "gridPos": { "x": 18, "y": 8, "w": 6, "h": 5 },
+      "targets": [ { "datasource": { "uid": "prom" }, "expr": "sum(increase(callbridge_redflags_total[24h]))" } ] },
+    { "id": 7, "type": "timeseries", "title": "Outcomes", "gridPos": { "x": 0, "y": 13, "w": 12, "h": 8 },
+      "targets": [ { "datasource": { "uid": "prom" }, "expr": "sum(increase(callbridge_call_outcomes_total[1h])) by (outcome)", "legendFormat": "{{outcome}}" } ] },
+    { "id": 8, "type": "timeseries", "title": "LLM calls by provider / failures", "gridPos": { "x": 12, "y": 13, "w": 12, "h": 8 },
+      "targets": [
+        { "datasource": { "uid": "prom" }, "expr": "sum(rate(callbridge_llm_calls_total[5m])) by (provider)", "legendFormat": "{{provider}}" },
+        { "datasource": { "uid": "prom" }, "expr": "sum(rate(callbridge_llm_failures_total[5m])) by (provider)", "legendFormat": "{{provider}} failures" } ] },
+    { "id": 9, "type": "timeseries", "title": "Safety checker rejections by reason", "gridPos": { "x": 0, "y": 21, "w": 24, "h": 7 },
+      "targets": [ { "datasource": { "uid": "prom" }, "expr": "sum(increase(callbridge_safety_blocks_total[1h])) by (reason)", "legendFormat": "{{reason}}" } ] }
+  ]
+}

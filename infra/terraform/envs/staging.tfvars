@@ -1,0 +1,9 @@
+env               = "staging"
+domain            = "api.staging.callbridge.example"
+dashboard_domain  = "app.staging.callbridge.example"
+certificate_arn   = "arn:aws:acm:eu-west-2:000000000000:certificate/REPLACE-ME"
+image_tag         = "set-by-deploy-script"
+api_desired_count = 1
+db_multi_az       = false
+alert_email       = "alerts@callbridge.example"
+enable_sim_api    = true # load tests run against staging only
