@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env: { POSTGRES_PASSWORD: pw }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      CALLBRIDGE_LLM_PROVIDER: rules
+      CALLBRIDGE_TEST_PG_ADMIN_URL: postgresql+psycopg://postgres:pw@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.9.5" }
+      - run: uv sync --frozen --all-extras
+      - run: uv run ruff check callbridge tests
+      - run: uv run pytest -q
+
+  # The fake-patient suite. Blocks merge if success drops, ANY safety test fails, or latency/cost rise.
+  eval-gate:
+    runs-on: ubuntu-latest
+    env: { CALLBRIDGE_LLM_PROVIDER: rules }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.9.5" }
+      - run: uv sync --frozen
+      - name: Run 300+ scenarios and gate against baseline
+        run: uv run callbridge eval --gate --baseline evals/baseline.json --report evals/report.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: eval-report, path: evals/report.json }
+
+  # Same suite with Claude doing the understanding. Needs the API key secret; skipped on forks.
+  eval-gate-llm:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      CALLBRIDGE_LLM_PROVIDER: anthropic
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.9.5" }
+      - run: uv sync --frozen
+      - if: env.ANTHROPIC_API_KEY != ''
+        run: uv run callbridge eval --gate --baseline evals/baseline-llm.json --report evals/report-llm.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: eval-report-llm, path: evals/report-llm.json, if-no-files-found: ignore }
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: dashboard } }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm, cache-dependency-path: dashboard/package-lock.json }
+      - run: npm ci
+      - run: npm run build
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: infra/terraform } }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.13.3 }
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
