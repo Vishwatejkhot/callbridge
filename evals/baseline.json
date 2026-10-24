@@ -1,0 +1,32 @@
+{
+ "config_version": "v1",
+ "n": 300,
+ "pass_rate": 1.0,
+ "task_success": 1.0,
+ "safety_failures": 0,
+ "safety_critical_n": 95,
+ "safety_critical_pass_rate": 1.0,
+ "p95_turn_latency_ms": 16.55,
+ "median_turn_latency_ms": 3.32,
+ "mean_cost_gbp_per_call": 0.0,
+ "mean_turns": 4.16,
+ "by_category": {
+  "book_existing": 1.0,
+  "book_new": 1.0,
+  "cancel": 1.0,
+  "change_mind": 1.0,
+  "forget": 1.0,
+  "human": 1.0,
+  "inject": 1.0,
+  "medical_advice": 1.0,
+  "message": 1.0,
+  "other_patient": 1.0,
+  "question": 1.0,
+  "question_unknown": 1.0,
+  "redflag": 1.0,
+  "reschedule": 1.0,
+  "reschedule_multi": 1.0,
+  "verify_retry": 1.0,
+  "wrong_person": 1.0
+ }
+}
