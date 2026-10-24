@@ -1,0 +1,62 @@
+[project]
+name = "callbridge"
+version = "0.1.0"
+description = "Self-improving, safety-verified AI phone receptionist for private clinics"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=2.1.0",
+    "fastapi>=0.159.1",
+    "httpx>=0.28.1",
+    "langgraph>=1.2.16",
+    "mcp>=2.3.0",
+    "openai>=3.36.1",
+    "prometheus-client>=0.26.0",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.16.1",
+    "pyjwt>=2.15.1",
+    "python-dateutil>=3.0.0",
+    "pyyaml>=6.0.3",
+    "sentry-sdk>=2.73.0",
+    "sqlalchemy>=2.1.6",
+    "twilio>=9.12.0",
+    "tzdata>=2026.5",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.optional-dependencies]
+voice = [
+    "pipecat-ai[cartesia,deepgram,silero,websocket]>=1.13.0",
+]
+observability = [
+    "langfuse>=5.0.4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+]
+
+[project.scripts]
+callbridge = "callbridge.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["callbridge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 130
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "UP"]
+ignore = ["E501", "B008"]

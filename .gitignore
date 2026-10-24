@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.db
+scratch_*
+evals/report*.json
+dashboard/node_modules/
+dashboard/.next/
+dashboard/next-env.d.ts
+dashboard/tsconfig.tsbuildinfo
+infra/terraform/.terraform/
+*.tfstate*
+.ruff_cache/
+.pytest_cache/

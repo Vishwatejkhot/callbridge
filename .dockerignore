@@ -1,0 +1,9 @@
+.venv
+.git
+**/__pycache__
+**/node_modules
+dashboard/.next
+*.db
+scratch_*
+.env
+infra/terraform/.terraform
