@@ -73,15 +73,16 @@ def check(s: Session, ctx: CallerContext, p: Proposal) -> Decision:
     return Decision(allowed=not reasons, reasons=reasons)
 
 
-def check_and_record(s: Session, ctx: CallerContext, p: Proposal) -> tuple[Decision, AuditLog]:
-    decision = check(s, ctx, p)
+def record(s: Session, ctx: CallerContext, p: Proposal, decision: Decision, executed: bool) -> AuditLog:
+    """Write the audit row once, in its final state. The app role can't UPDATE or DELETE audit rows
+    (infra/sql/001_rls.sql); it's written in the same transaction as the action, so they commit together."""
     entry = AuditLog(
         clinic_id=ctx.clinic_id, call_id=ctx.call_id, action=p.action, proposal=p.model_dump(mode="json"),
-        allowed=decision.allowed, reasons=decision.reasons,
+        allowed=decision.allowed, reasons=decision.reasons, executed=executed,
     )
     s.add(entry)
     s.flush()
-    return decision, entry
+    return entry
 
 
 def _slot_problems(s: Session, clinic: Clinic, practitioner_id: int, start, ignore_booking_id: int | None) -> list[str]:

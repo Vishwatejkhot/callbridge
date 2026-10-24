@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from callbridge import clock
-from callbridge.db.models import AuditLog, Booking, Call, Clinic, MemoryFact, Message, Patient, Practitioner, SmsLog
+from callbridge.db.models import Booking, Call, Clinic, MemoryFact, Message, Patient, Practitioner, SmsLog
 from callbridge.safety import checker
 from callbridge.safety.proposals import (
     BookProposal, CallerContext, CancelProposal, Decision, ForgetProposal, Proposal, RescheduleProposal,
@@ -104,9 +104,10 @@ def upcoming_bookings(s: Session, clinic_id: int, patient_id: int) -> list[Booki
 
 
 def propose_and_execute(s: Session, ctx: CallerContext, proposal: Proposal) -> ActionResult:
-    """The single write path: check -> audit -> execute -> mark executed -> confirm by SMS."""
-    decision, audit = checker.check_and_record(s, ctx, proposal)
+    """The single write path: check -> execute -> audit (same transaction) -> confirm by SMS."""
+    decision = checker.check(s, ctx, proposal)
     if not decision.allowed:
+        checker.record(s, ctx, proposal, decision, executed=False)
         return ActionResult(ok=False, decision=decision)
 
     clinic = s.get(Clinic, ctx.clinic_id)
@@ -137,8 +138,7 @@ def propose_and_execute(s: Session, ctx: CallerContext, proposal: Proposal) -> A
     elif isinstance(proposal, ForgetProposal):
         forget_patient(s, clinic.id, proposal.patient_id)
 
-    audit.executed = True
-    s.flush()
+    checker.record(s, ctx, proposal, decision, executed=True)
     sent = False
     if sms_text and ctx.caller_phone:
         sent = sms.send(s, clinic.id, ctx.caller_phone, sms_text)
@@ -147,7 +147,8 @@ def propose_and_execute(s: Session, ctx: CallerContext, proposal: Proposal) -> A
 
 def forget_patient(s: Session, clinic_id: int, patient_id: int) -> None:
     """Right to erasure: database rows, memory, transcripts, messages, SMS log, recordings.
-    Audit entries are kept but stripped of the patient reference (legal obligation to evidence actions)."""
+    Audit entries are append-only and kept (obligation to evidence actions); they hold only internal ids,
+    which point at nothing once the patient row is deleted."""
     patient = s.get(Patient, patient_id)
     if patient is None or patient.clinic_id != clinic_id:
         return
@@ -165,9 +166,6 @@ def forget_patient(s: Session, clinic_id: int, patient_id: int) -> None:
         if c.recording_url:
             delete_recording(c.recording_url)
         c.transcript, c.summary, c.caller_phone, c.patient_id, c.recording_url = [], "[erased]", None, None, None
-    for a in s.scalars(select(AuditLog).where(AuditLog.clinic_id == clinic_id)):
-        if a.proposal.get("patient_id") == patient_id:
-            a.proposal = {**a.proposal, "patient_id": None}
     s.delete(patient)
     s.flush()
 
